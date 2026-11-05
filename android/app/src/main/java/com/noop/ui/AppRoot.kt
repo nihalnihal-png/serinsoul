@@ -957,6 +957,16 @@ fun AppRoot(viewModel: AppViewModel = viewModel()) {
                     BottomBarStyleStore.barHeight = with(density) { it.height.toDp() }
                 },
         )
+
+        if (BottomBarStyleStore.coachEnabled && currentRoute != Destination.Coach.route) {
+            SeriChatButton(
+                onClick = { nav.navigateTopLevel(Destination.Coach.route) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 12.dp, bottom = 92.dp),
+            )
+        }
     }
 }
 
