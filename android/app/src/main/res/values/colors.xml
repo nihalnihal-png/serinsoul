@@ -2,7 +2,7 @@
 <resources>
     <!-- Ported from StrandDesign Palette.swift. These XML values back the window/system
          chrome only; the in-app Compose surfaces use com.noop.ui.NoopTheme colors. -->
-    <color name="surface_base">#FF060A08</color>
+    <color name="surface_base">#FFF3F1F8</color>
     <color name="surface_raised">#FF0D1512</color>
     <color name="accent">#FF2563EB</color>
     <color name="text_primary">#FFF4F7F5</color>

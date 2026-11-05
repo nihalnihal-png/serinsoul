@@ -14,8 +14,7 @@ import androidx.compose.ui.graphics.Color
 // is snapshot state, so every `Palette.X` read (in a composable OR a Canvas DrawScope) re-resolves
 // automatically when the theme flips — ZERO call-site changes across the ~1,740 references.
 //
-// Dark values mirror StrandPalette.swift's dark; light values are the approved "Warm Paper" set
-// (docs/superpowers/specs/2026-06-16-light-theme-design.md). Names/order match the Swift palette.
+// Dark values mirror StrandPalette.swift's dark; light values use SereinSoul's soft-sky palette.
 
 data class PaletteTokens(
     val surfaceBase: Color,
@@ -130,13 +129,11 @@ val DarkTokens = PaletteTokens(
 )
 
 val LightTokens = PaletteTokens(
-    surfaceBase = Color(0xFFEAE3D4), surfaceRaised = Color(0xFFFFFFFF), surfaceOverlay = Color(0xFFFFFFFF),
-    surfaceInset = Color(0xFFDFD8C8), hairline = Color(0xFFD8D0BD), hairlineStrong = Color(0xFFC7BCA4),
-    textPrimary = Color(0xFF1A2230), textSecondary = Color(0xFF4C5564), textTertiary = Color(0xFF7C8696),
-    glowAmbient = Color(0xFFF0E4C0),
-    // Light chrome accent → brand mint, parity with iOS #1068 (NoopVisualStyle.mint/mintGlow, light side).
-    // accentMuted is a pale mint tint (green-shifted analog of the old pale blue 0xFFE4ECF6); note Android's
-    // light theme is a WARM paper theme, so this shade may want an on-device tweak. Gold stays in recovery.
+    surfaceBase = Color(0xFFF3F1F8), surfaceRaised = Color(0xFFFFFFFF), surfaceOverlay = Color(0xFFFFFFFF),
+    surfaceInset = Color(0xFFE6ECF7), hairline = Color(0xFFDCE5F3), hairlineStrong = Color(0xFFC3D3EA),
+    textPrimary = Color(0xFF1F2A44), textSecondary = Color(0xFF4A5878), textTertiary = Color(0xFF7D8BA8),
+    glowAmbient = Color(0xFFDCE8FA),
+    // SereinSoul blue chrome accent. Recovery, strain and sleep retain their own data colors.
     accent = Color(0xFF2563EB), accentHover = Color(0xFF3B82F6), accentMuted = Color(0xFFDBE7FB), focusRing = Color(0xFF2563EB),
     recovery000 = Color(0xFF8F6212), recovery030 = Color(0xFFA87718), recovery055 = Color(0xFFC28E26),
     recovery078 = Color(0xFFD2A23A), recovery100 = Color(0xFFE0B44C),
@@ -149,10 +146,10 @@ val LightTokens = PaletteTokens(
     effortColor = Color(0xFFB26A1C), effortDeep = Color(0xFF7E460E), effortBright = Color(0xFFD89240), effortGlow = Color(0xFFB26A1C),
     restColor = Color(0xFF3A80D6), restDeep = Color(0xFF234F9E), restBright = Color(0xFF5790DA), restGlow = Color(0xFF3A80D6),
     stressColor = Color(0xFFB88421), stressDeep = Color(0xFF3A80D6), stressBright = Color(0xFFC84E1E), stressGlow = Color(0xFFB88421),
-    scenicCenter = Color(0xFFFBF6EA), scenicEdge = Color(0xFFEDE6D6), scenicStar = Color(0xFFD8CDB6),
-    cardFillTop = Color(0xFFFFFFFF), cardFillBottom = Color(0xFFFAF7F0),
+    scenicCenter = Color(0xFFF7F9FE), scenicEdge = Color(0xFFE3ECF8), scenicStar = Color(0xFFC9D8EE),
+    cardFillTop = Color(0xFFEAF2FD), cardFillBottom = Color(0xFFFFFFFF),
     gold = Color(0xFFDBA52A), goldLight = Color(0xFFECC766), goldDeep = Color(0xFF9A6B12),
-    goldDeepText = Color(0xFF3A2708), signalYellow = Color(0xFFE8A800),
+    goldDeepText = Color(0xFFFFFFFF), signalYellow = Color(0xFFE8A800),
     titaniumTop = Color(0xFFDDE1E6), titaniumMid = Color(0xFFBBC2C9), titaniumLow = Color(0xFF98A0A8), titaniumDeep = Color(0xFF6B737B),
     tipCore = Color(0xFF241B06),
     // Frosted WHITE hero in light mode (#1160), subtle dark edge. (Hero text uses the flip-able text*
@@ -262,7 +259,7 @@ enum class AppearanceMode(val storageValue: String, val label: String) {
 
     companion object {
         fun fromStorage(raw: String?): AppearanceMode =
-            entries.firstOrNull { it.storageValue == raw } ?: SYSTEM
+            entries.firstOrNull { it.storageValue == raw } ?: LIGHT
     }
 }
 
@@ -295,8 +292,8 @@ object AppearancePrefs {
     private fun prefs(ctx: Context): SharedPreferences =
         ctx.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
-    /** Live appearance mode read by NoopTheme; defaults to System until [load] runs. */
-    var mode by mutableStateOf(AppearanceMode.SYSTEM)
+    /** Live appearance mode read by NoopTheme; new installs default to the SereinSoul light palette. */
+    var mode by mutableStateOf(AppearanceMode.LIGHT)
         private set
 
     /**
@@ -309,7 +306,7 @@ object AppearancePrefs {
         private set
 
     fun load(ctx: Context) {
-        mode = AppearanceMode.fromStorage(prefs(ctx).getString(KEY, AppearanceMode.SYSTEM.storageValue))
+        mode = AppearanceMode.fromStorage(prefs(ctx).getString(KEY, AppearanceMode.LIGHT.storageValue))
         gaugeNumerals = GaugeNumeralStyle.fromStorage(
             prefs(ctx).getString(GAUGE_KEY, GaugeNumeralStyle.BOLD.storageValue))
     }

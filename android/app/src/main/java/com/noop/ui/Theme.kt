@@ -23,10 +23,12 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.noop.R
 
 // MARK: - Palette — the "Titanium & Gold" re-skin (mirrors StrandDesign/Palette.swift)
 //
@@ -405,7 +407,7 @@ object Metrics {
     val space18 = 18.dp
     val space24 = 24.dp
     val sourceBadgeHeight = 18.dp
-    val cardRadius = 18.dp   // Bevel continuous radius (18–22dp)
+    val cardRadius = 24.dp
     val cornerXs = 2.dp
     val cornerSm = 12.dp
     val cornerBadge = 6.dp
@@ -465,8 +467,13 @@ object Metrics {
 // values don't reflow; Monospace is reserved for the `mono` raw/log style only.
 
 object NoopType {
-    // Helvetica Neue family — falls back to the platform grotesque (SansSerif) when
-    // no res/font/helvetica_neue asset is bundled, per the v3 type spec.
+    private val poppins = FontFamily(
+        Font(R.font.poppins_regular, FontWeight.Normal),
+        Font(R.font.poppins_medium, FontWeight.Medium),
+        Font(R.font.poppins_semibold, FontWeight.SemiBold),
+        Font(R.font.poppins_bold, FontWeight.Bold),
+    )
+    // Keep compact body and numeric styles on the system sans to protect dense tiles and gauges.
     private val sans = FontFamily.SansSerif
     private val monoFamily = FontFamily.Monospace
 
@@ -481,9 +488,9 @@ object NoopType {
      *  display(); exposed to mirror StrandFont.displayTracking. */
     fun displayTracking(size: Float = 72f): Float = -size * 0.04f
 
-    val title1 = TextStyle(fontFamily = sans, fontWeight = FontWeight.Bold, fontSize = 28.sp)
-    val title2 = TextStyle(fontFamily = sans, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
-    val headline = TextStyle(fontFamily = sans, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+    val title1 = TextStyle(fontFamily = poppins, fontWeight = FontWeight.Bold, fontSize = 28.sp)
+    val title2 = TextStyle(fontFamily = poppins, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
+    val headline = TextStyle(fontFamily = poppins, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
     val body = TextStyle(fontFamily = sans, fontWeight = FontWeight.Normal, fontSize = 15.sp)
     val subhead = TextStyle(fontFamily = sans, fontWeight = FontWeight.Normal, fontSize = 13.sp)
     val caption = TextStyle(fontFamily = sans, fontWeight = FontWeight.Normal, fontSize = 12.sp)
