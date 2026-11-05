@@ -1,0 +1,31 @@
+name: Build SereinSoul APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - run: chmod +x gradlew
+
+      - run: ./gradlew assembleFullDebug assembleDemoDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sereinsoul-apks
+          path: |
+            android/app/build/outputs/apk/full/debug/*.apk
+            android/app/build/outputs/apk/demo/debug/*.apk

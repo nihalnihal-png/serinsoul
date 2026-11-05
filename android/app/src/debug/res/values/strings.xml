@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug builds use a separate application ID so they install alongside a release build.
+  Build-type source set wins over main/flavor, so both debug flavors use this clean launcher name.
+-->
+<resources>
+    <string name="app_name">SereinSoul</string>
+</resources>
