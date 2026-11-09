@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { Activity, BatteryFull, HeartPulse, LockKeyhole, RefreshCw, ShieldCheck, Watch, Waves } from "lucide-react";
 
 const API_BASE = "https://serinsoul-api.onrender.com";
