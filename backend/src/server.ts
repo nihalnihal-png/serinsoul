@@ -125,7 +125,14 @@ app.post("/noop/push", express.raw({ type: () => true, limit: "4.1mb" }), async 
     if (client) await client.query("ROLLBACK").catch(() => undefined);
     const message = error instanceof Error ? error.message : "";
     if (message.includes("too large") || message.includes("larger than")) return sendError(res, 413, "body_too_large");
-    console.error("Push request failed", error instanceof Error ? error.name : "unknown");
+    const pushError = error as { name?: string; code?: string; message?: string; detail?: string; constraint?: string };
+    console.error("Push request failed", {
+      name: pushError?.name ?? "unknown",
+      code: pushError?.code ?? "unknown",
+      message: (pushError?.message ?? "unknown").slice(0, 300),
+      detail: (pushError?.detail ?? "").slice(0, 200),
+      constraint: pushError?.constraint ?? "unknown",
+    });
     return sendError(res, 500, "receiver_error");
   } finally {
     client?.release();
