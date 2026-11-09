@@ -129,3 +129,15 @@
 @media(max-width:1120px){.serene-dashboard{grid-template-columns:220px minmax(420px,1fr);}.serene-right{grid-column:1/-1;grid-template-columns:1fr 1fr}.serene-week-card{min-height:300px}.week-empty{min-height:130px}.serene-shortcuts{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){.serene-topbar{height:65px;padding:0 15px}.serene-brand{font-size:20px}.serene-logo{width:39px;height:39px}.serene-connection{font-size:0}.serene-icon-btn{width:36px;height:36px}.serene-signout{padding:9px 14px;font-size:10px}.serene-hero{height:auto;min-height:220px;padding:25px 18px;gap:13px;align-items:center}.hero-mascot{width:100px;height:100px;font-size:54px;border-width:3px;margin:0}.hero-mascot>span{font-size:44px;margin-top:-13px}.mascot-spark{width:15px;right:-8px;top:15px}.hero-copy h1{font-size:22px}.hero-copy p{font-size:10px;line-height:1.5}.hero-copy .serene-kicker{font-size:7px}.hero-care{display:none}.serene-dashboard{display:flex;flex-direction:column;padding:14px 12px;gap:13px}.serene-center{order:1;width:100%}.serene-left{order:2;width:100%;grid-template-columns:1fr}.serene-right{order:3;width:100%;grid-template-columns:1fr}.serene-shortcuts{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.shortcut{min-height:77px}.shortcut span svg{width:25px}.serene-login{grid-template-columns:auto 1fr}.login-input{grid-column:1/-1}.tracker-layout{grid-template-columns:1fr}.serene-clock-card{min-height:390px}.serene-week-card{min-height:290px}.week-empty{min-height:120px}.serene-footer{padding:15px;flex-direction:column}.serene-card-heading h2{font-size:16px}}
 @media(max-width:390px){.hero-mascot{width:78px;height:78px}.hero-copy h1{font-size:19px}.serene-brand{font-size:18px}.serene-top-actions{gap:7px}.serene-main-card{padding:14px}.serene-calendar{padding:12px 8px}}
+
+
+/* Supplied SerinSoul mascot artwork */
+.serene-logo{overflow:hidden;background:transparent;box-shadow:none}
+.serene-logo img{width:100%;height:100%;object-fit:contain;display:block}
+.hero-mascot{background:transparent;border:0;box-shadow:none;border-radius:0;width:260px;height:250px;transform:none;margin-top:15px;text-shadow:none}
+.hero-mascot:before,.hero-mascot:after{display:none}
+.hero-mascot img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 8px 10px #4c78a333)}
+.hero-mascot>span,.hero-mascot .mascot-spark{display:none}
+.left-mascot{position:absolute;z-index:2;width:150px;height:150px;object-fit:contain;right:22px;bottom:2px;filter:drop-shadow(0 5px 8px #718bb333)}
+@media(max-width:760px){.hero-mascot{width:112px;height:120px;margin:0}.left-mascot{width:115px;height:115px;right:10px}}
+@media(max-width:390px){.hero-mascot{width:88px;height:95px}}
