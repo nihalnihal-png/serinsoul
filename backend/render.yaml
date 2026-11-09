@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: serinsoul-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: NOOP_PUSH_TOKEN
+        generateValue: true
+      - key: DASHBOARD_API_TOKEN
+        generateValue: true
+      - key: RECEIVER_STATE_ID
+        sync: false
