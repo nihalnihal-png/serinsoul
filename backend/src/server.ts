@@ -147,7 +147,15 @@ app.get("/api/v1/measurements", async (req, res) => {
       [stream, limit]
     );
     return res.json({ data: result.rows, count: result.rowCount });
-  } catch {
+  } catch (error) {
+    // Log safe PostgreSQL diagnostics server-side; never expose connection details to the browser.
+    const dbError = error as { name?: string; code?: string; message?: string };
+    console.error("Dashboard measurements query failed", {
+      stream,
+      name: dbError?.name ?? "unknown",
+      code: dbError?.code ?? "unknown",
+      message: (dbError?.message ?? "unknown").slice(0, 300),
+    });
     return res.status(500).json({ error: "database_error" });
   }
 });
