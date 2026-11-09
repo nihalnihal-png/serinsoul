@@ -2,7 +2,6 @@ import "dotenv/config";
 import express, { type Request, type Response } from "express";
 import cors from "cors";
 import { createHash, timingSafeEqual } from "node:crypto";
-import { gunzipSync } from "node:zlib";
 import { Pool, type PoolClient } from "pg";
 
 const app = express();
@@ -34,14 +33,12 @@ function sendError(res: Response, status: number, code: string) {
 }
 
 function parseBody(req: Request): Buffer {
-  const chunks: Buffer[] = [];
-  let total = 0;
-  // express.raw has already bounded the encoded entity; decompression is separately bounded below.
-  const raw = req.body as Buffer;
-  if (!Buffer.isBuffer(raw)) throw new Error("invalid_body");
-  const decoded = req.header("content-encoding")?.toLowerCase() === "gzip" ? gunzipSync(raw, { maxOutputLength: MAX_BODY }) : raw;
-  total += decoded.length;
-  if (total > MAX_BODY) throw new Error("body_too_large");
+  // express.raw() automatically decompresses gzip request entities before exposing req.body.
+  // Do not gunzip again here: doing so attempts to decompress the already-decoded NDJSON
+  // and produces the receiver's invalid_gzip error.
+  const decoded = req.body as Buffer;
+  if (!Buffer.isBuffer(decoded)) throw new Error("invalid_body");
+  if (decoded.length > MAX_BODY) throw new Error("body_too_large");
   return decoded;
 }
 
@@ -127,8 +124,7 @@ app.post("/noop/push", express.raw({ type: () => true, limit: "4.1mb" }), async 
   } catch (error) {
     if (client) await client.query("ROLLBACK").catch(() => undefined);
     const message = error instanceof Error ? error.message : "";
-    if (message.includes("maxOutputLength") || message.includes("too large") || message.includes("larger than")) return sendError(res, 413, "body_too_large");
-    if (message.includes("incorrect header") || message.includes("unexpected end")) return sendError(res, 400, "invalid_gzip");
+    if (message.includes("too large") || message.includes("larger than")) return sendError(res, 413, "body_too_large");
     console.error("Push request failed", error instanceof Error ? error.name : "unknown");
     return sendError(res, 500, "receiver_error");
   } finally {
