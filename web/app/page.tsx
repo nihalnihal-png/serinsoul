@@ -1,87 +1,140 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Activity, ArrowDownRight, ArrowUpRight, Bell, CalendarDays, ChevronDown,
-  ChevronLeft, ChevronRight, CircleHelp, Clock3, Cloud, Footprints, Heart,
-  LayoutDashboard, Moon, MoreHorizontal, Settings2, ShieldCheck, Sparkles,
-  Watch, Zap, Menu, X, Droplets, Flame, Wind, BatteryFull
-} from "lucide-react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { Activity, BatteryFull, HeartPulse, LockKeyhole, RefreshCw, ShieldCheck, Watch, Waves } from "lucide-react";
 
-type NavKey = "Overview" | "Vitals" | "Sleep" | "Activity" | "Trends";
-const nav: { label: NavKey; icon: typeof LayoutDashboard }[] = [
-  { label: "Overview", icon: LayoutDashboard }, { label: "Vitals", icon: Heart },
-  { label: "Sleep", icon: Moon }, { label: "Activity", icon: Activity }, { label: "Trends", icon: CalendarDays },
-];
+const API_BASE = "https://serinsoul-api.onrender.com";
 
-function LineChart({ color = "#76d8bd", height = 170 }: { color?: string; height?: number }) {
-  const points = "0,111 22,103 44,109 66,77 88,87 110,64 132,75 154,45 176,57 198,38 220,55 242,29 264,43 286,21 308,32 330,16 352,28 374,10 396,20 418,7";
-  return <svg viewBox="0 0 418 130" className="line-chart" role="img" aria-label="Heart rate trend chart">
-    {[25,55,85,115].map(y => <line key={y} x1="0" x2="418" y1={y} y2={y} stroke="currentColor" opacity=".09" strokeDasharray="3 5" />)}
-    <polyline points={points} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-    <circle cx="418" cy="7" r="4" fill={color} />
-  </svg>;
+type Measurement = {
+  device_id: string;
+  stream: string;
+  key_json: Record<string, unknown>;
+  data_json: Record<string, unknown>;
+  measurement_ts: number | string;
+};
+type ApiResponse = { data: Measurement[]; count: number };
+type StreamState = { rows: Measurement[]; count: number };
+
+function timeLabel(value: number | string | undefined) {
+  if (value === undefined) return "—";
+  const date = new Date(Number(value) * 1000);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
 }
-
-function Ring({ value, label, color, sub }: { value: number; label: string; color: string; sub: string }) {
-  const circumference = 2 * Math.PI * 42;
-  return <div className="ring-wrap">
-    <div className="ring">
-      <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" className="ring-track" /><circle cx="50" cy="50" r="42" className="ring-value" style={{ stroke: color, strokeDasharray: circumference, strokeDashoffset: circumference * (1 - value / 100) }} /></svg>
-      <div className="ring-center"><strong>{value}</strong><small>{label}</small></div>
-    </div><span className="ring-sub">{sub}</span>
-  </div>;
-}
-
-function Metric({ icon: Icon, label, value, unit, change, positive = true }: { icon: typeof Heart; label: string; value: string; unit: string; change: string; positive?: boolean }) {
-  return <div className="metric-card">
-    <div className="metric-top"><span className="metric-icon"><Icon size={17} /></span><span className="metric-label">{label}</span><MoreHorizontal size={17} className="muted" /></div>
-    <div className="metric-number">{value}<small>{unit}</small></div>
-    <div className={positive ? "change good" : "change neutral"}>{positive ? <ArrowUpRight size={14}/> : <ArrowDownRight size={14}/>} {change}</div>
-  </div>;
+function relativeTime(value: number | string | undefined) {
+  if (value === undefined) return "No readings yet";
+  const seconds = Math.max(0, Math.floor(Date.now() / 1000 - Number(value)));
+  if (seconds < 60) return "Just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hr ago`;
+  return `${Math.floor(seconds / 86400)} days ago`;
 }
 
 export default function Home() {
-  const [active, setActive] = useState<NavKey>("Overview");
-  const [range, setRange] = useState("Today");
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [showNotice, setShowNotice] = useState(true);
-  const title = active === "Overview" ? "Your day, in rhythm." : active === "Vitals" ? "Your body, at a glance." : active === "Sleep" ? "Rest is part of progress." : active === "Activity" ? "Move with intention." : "Patterns over time.";
-  return <main className="app-shell">
-    <aside className={mobileOpen ? "sidebar mobile-open" : "sidebar"}>
-      <div className="brand"><div className="brand-mark"><Activity size={21}/></div><div><b>serinsoul<span>.</span></b><small>WELLNESS, IN SYNC</small></div><button className="mobile-close" onClick={() => setMobileOpen(false)}><X size={18}/></button></div>
-      <div className="workspace-label">WORKSPACE</div>
-      <nav>{nav.map(item => <button key={item.label} className={active === item.label ? "nav-item active" : "nav-item"} onClick={() => { setActive(item.label); setMobileOpen(false); }}><item.icon size={18}/><span>{item.label}</span>{item.label === "Overview" && <i/>}</button>)}</nav>
-      <div className="sidebar-bottom">
-        <div className="device-card"><div className="device-top"><span className="device-icon"><Watch size={17}/></span><span className="online-dot"/></div><b>WHOOP 4.0</b><small>Connected · Synced just now</small><div className="battery-line"><BatteryFull size={14}/> 86% battery</div></div>
-        <button className="nav-item"><Settings2 size={18}/> <span>Settings</span></button>
-        <div className="profile"><div className="avatar">N</div><div><b>Nihal</b><small>Personal account</small></div><MoreHorizontal size={18}/></div>
+  const [token, setToken] = useState("");
+  const [tokenInput, setTokenInput] = useState("");
+  const [connected, setConnected] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [streams, setStreams] = useState<Record<string, StreamState>>({
+    hrSample: { rows: [], count: 0 },
+    rrInterval: { rows: [], count: 0 },
+    battery: { rows: [], count: 0 },
+  });
+
+  const refresh = useCallback(async (authToken: string) => {
+    setLoading(true);
+    setError("");
+    try {
+      const names = ["hrSample", "rrInterval", "battery"];
+      const responses = await Promise.all(names.map(async stream => {
+        const response = await fetch(`${API_BASE}/api/v1/measurements?stream=${stream}&limit=500`, {
+          headers: { Authorization: `Bearer ${authToken}`, Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (response.status === 401) throw new Error("The dashboard token was rejected. Check that it matches DASHBOARD_API_TOKEN in Render.");
+        if (!response.ok) throw new Error(`The API returned HTTP ${response.status} for ${stream}.`);
+        return [stream, await response.json() as ApiResponse] as const;
+      }));
+      const next: Record<string, StreamState> = {};
+      for (const [stream, result] of responses) next[stream] = { rows: result.data, count: result.count };
+      setStreams(next);
+      setLastRefresh(new Date());
+      setConnected(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to load measurements.");
+      setConnected(false);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem("serinsoul-dashboard-token");
+    if (saved) {
+      setToken(saved);
+      void refresh(saved);
+    }
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!token || !connected) return;
+    const id = window.setInterval(() => void refresh(token), 30000);
+    return () => window.clearInterval(id);
+  }, [token, connected, refresh]);
+
+  const heartRows = useMemo(() => [...streams.hrSample.rows].sort((a, b) => Number(a.measurement_ts) - Number(b.measurement_ts)), [streams.hrSample.rows]);
+  const latestHr = streams.hrSample.rows[0];
+  const latestRr = streams.rrInterval.rows[0];
+  const latestBattery = streams.battery.rows[0];
+  const hrValues = heartRows.slice(-60).map(row => Number(row.data_json.bpm)).filter(Number.isFinite);
+  const currentHr = latestHr?.data_json.bpm;
+  const currentRr = latestRr?.key_json.rrMs;
+  const batterySoc = latestBattery?.data_json.soc;
+  const totalRows = streams.hrSample.count + streams.rrInterval.count + streams.battery.count;
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = tokenInput.trim();
+    if (!value) return;
+    sessionStorage.setItem("serinsoul-dashboard-token", value);
+    setToken(value);
+    void refresh(value);
+  }
+  function disconnect() {
+    sessionStorage.removeItem("serinsoul-dashboard-token");
+    setToken("");
+    setTokenInput("");
+    setConnected(false);
+    setStreams({ hrSample: { rows: [], count: 0 }, rrInterval: { rows: [], count: 0 }, battery: { rows: [], count: 0 } });
+  }
+
+  return <main className="live-shell">
+    <header className="live-header">
+      <div className="live-brand"><span className="live-brand-mark"><Activity size={21}/></span><span><b>serinsoul<span>.</span></b><small>WELLNESS, IN SYNC</small></span></div>
+      <div className="live-header-right"><span className={connected ? "live-status connected" : "live-status"}><i/>{connected ? "Connected to your data" : "Waiting for connection"}</span><button className="live-refresh" onClick={() => token && void refresh(token)} disabled={!token || loading}><RefreshCw size={15} className={loading ? "spinning" : ""}/> Refresh</button></div>
+    </header>
+    <section className="live-content">
+      <div className="live-intro"><div><div className="live-eyebrow"><ShieldCheck size={14}/> PRIVATE HEALTH DASHBOARD</div><h1>Your health, in rhythm.</h1><p>Live measurements received from your WHOOP through the SerinSoul receiver.</p></div><div className="live-last-sync">LAST REFRESHED<strong>{lastRefresh ? lastRefresh.toLocaleTimeString() : "Not connected"}</strong></div></div>
+
+      {!token && <form className="token-panel" onSubmit={submit}><div className="token-icon"><LockKeyhole size={19}/></div><div className="token-copy"><b>Connect your private dashboard</b><span>Enter the DASHBOARD_API_TOKEN configured in your Render service. It stays in this browser tab's session and is not embedded in the website.</span></div><div className="token-entry"><input type="password" autoComplete="off" value={tokenInput} onChange={e => setTokenInput(e.target.value)} placeholder="Dashboard API token" aria-label="Dashboard API token"/><button type="submit" disabled={!tokenInput.trim() || loading}>Connect</button></div></form>}
+
+      {error && <div className="live-error" role="alert">{error}<button onClick={disconnect}>Clear token</button></div>}
+
+      <div className="live-section-title"><div><h2>Live measurements</h2><p>Only streams currently supported by your receiver are shown.</p></div><span className="stream-count">{totalRows.toLocaleString()} stored records</span></div>
+      <div className="live-metric-grid">
+        <article className="live-metric"><div className="live-metric-head"><span><HeartPulse size={17}/></span><small>HEART RATE</small></div><strong>{currentHr == null ? "—" : String(currentHr)}<em>{currentHr == null ? "" : " bpm"}</em></strong><p>{latestHr ? relativeTime(latestHr.measurement_ts) : "Waiting for first heart-rate sample"}</p><small className="live-record-count">{streams.hrSample.count.toLocaleString()} samples received</small></article>
+        <article className="live-metric"><div className="live-metric-head"><span><Waves size={17}/></span><small>RR INTERVAL</small></div><strong>{currentRr == null ? "—" : String(currentRr)}<em>{currentRr == null ? "" : " ms"}</em></strong><p>{latestRr ? relativeTime(latestRr.measurement_ts) : "Waiting for first RR interval"}</p><small className="live-record-count">{streams.rrInterval.count.toLocaleString()} samples received</small></article>
+        <article className="live-metric"><div className="live-metric-head"><span><BatteryFull size={17}/></span><small>DEVICE BATTERY</small></div><strong>{batterySoc == null ? "—" : String(batterySoc)}<em>{batterySoc == null ? "" : "%"}</em></strong><p>{latestBattery ? relativeTime(latestBattery.measurement_ts) : "Waiting for battery information"}</p><small className="live-record-count">{streams.battery.count.toLocaleString()} records received</small></article>
       </div>
-    </aside>
-    {mobileOpen && <div className="scrim" onClick={() => setMobileOpen(false)}/>}
-    <section className="main-area">
-      <header className="topbar"><button className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu/></button><div className="breadcrumb">Workspace <span>/</span> <b>{active}</b></div><div className="top-actions"><span className="sync-status"><span/> All data synced</span><button className="icon-button"><Bell size={18}/><i/></button><div className="top-avatar">N</div></div></header>
-      <div className="content">
-        <div className="welcome-row"><div><div className="eyebrow"><Sparkles size={14}/> MONDAY, NOVEMBER 9, 2026</div><h1>{title}</h1><p className="subtitle">A little more awareness. A better way to feel.</p></div><div className="date-control"><button><ChevronLeft size={16}/></button><CalendarDays size={16}/><span>Today</span><button><ChevronRight size={16}/></button></div></div>
-        {showNotice && <div className="notice"><div className="notice-icon"><ShieldCheck size={18}/></div><div><b>Your data stays yours.</b><span> Your health data is synced from your device and shown privately in your dashboard.</span></div><button onClick={() => setShowNotice(false)}><X size={16}/></button></div>}
-        <div className="section-heading"><div><h2>Daily overview</h2><p>Your key signals, all in one place.</p></div><div className="range-switch">{["Today","7 days","30 days"].map(x => <button key={x} onClick={() => setRange(x)} className={range === x ? "selected" : ""}>{x}</button>)}</div></div>
-        <div className="score-grid">
-          <div className="score-card charge-card"><div className="card-heading"><span>DAILY CHARGE</span><span className="live-pill"><i/> TODAY</span></div><div className="charge-main"><Ring value={78} label="GOOD" color="#7ed9bc" sub="Recovery score"/><div className="charge-copy"><h3>You're finding your balance.</h3><p>Your body is showing signs of readiness. Keep a steady pace and listen to how you feel.</p><span className="score-foot"><ArrowUpRight size={14}/> +6 points from yesterday</span></div></div><div className="card-divider"/><div className="score-bottom"><span><small>RESTING HR</small><b>54 <em>bpm</em></b></span><span><small>HRV</small><b>68 <em>ms</em></b></span><span><small>RESPIRATORY RATE</small><b>15.2 <em>rpm</em></b></span></div></div>
-          <div className="score-card sleep-card"><div className="card-heading"><span>SLEEP PERFORMANCE</span><Moon size={17}/></div><div className="sleep-score"><strong>86</strong><span>/ 100</span><b>Well rested</b></div><div className="sleep-bar"><i/></div><div className="sleep-meta"><span><small>TIME ASLEEP</small><b>7h 42m</b></span><span><small>SLEEP NEED</small><b>8h 15m</b></span></div><div className="sleep-note"><Clock3 size={14}/> You got 93% of your sleep need</div></div>
-        </div>
-        <div className="section-heading metrics-heading"><div><h2>Body signals</h2><p>A closer look at what's happening right now.</p></div><button className="text-link" onClick={() => setActive("Vitals")}>Explore vitals <ChevronRight size={15}/></button></div>
-        <div className="metric-grid">
-          <Metric icon={Heart} label="Heart rate" value="72" unit=" bpm" change="Resting 54 bpm"/>
-          <Metric icon={Activity} label="HRV (RMSSD)" value="68" unit=" ms" change="↑ 8 ms vs 7-day avg"/>
-          <Metric icon={Wind} label="Respiratory rate" value="15.2" unit=" rpm" change="Within your baseline"/>
-          <Metric icon={Droplets} label="Blood oxygen" value="97" unit="%" change="Latest recorded sample"/>
-        </div>
-        <div className="lower-grid">
-          <div className="panel heart-panel"><div className="panel-heading"><div><h2>Heart rate</h2><p>Your heart rate throughout the day</p></div><button className="select-button">Today <ChevronDown size={14}/></button></div><div className="chart-summary"><strong>72 <small>bpm</small></strong><span className="change good"><ArrowUpRight size={14}/> Live reading</span></div><LineChart/><div className="chart-axis"><span>6 AM</span><span>9 AM</span><span>12 PM</span><span>3 PM</span><span>6 PM</span><span>9 PM</span></div><div className="legend"><span><i/> Heart rate</span><span className="legend-muted">Resting baseline · 54 bpm</span></div></div>
-          <div className="panel activity-panel"><div className="panel-heading"><div><h2>Activity snapshot</h2><p>Movement adds up.</p></div><span className="activity-date">TODAY</span></div><div className="activity-stat"><span className="activity-icon steps"><Footprints size={18}/></span><div><small>STEPS</small><b>8,426 <em>/ 10,000</em></b></div><strong>84%</strong></div><div className="progress"><i style={{width:"84%"}}/></div><div className="activity-stat"><span className="activity-icon strain"><Zap size={18}/></span><div><small>STRAIN</small><b>11.2 <em>/ 21</em></b></div><strong>53%</strong></div><div className="progress orange"><i style={{width:"53%"}}/></div><div className="activity-stat"><span className="activity-icon calories"><Flame size={18}/></span><div><small>CALORIES</small><b>1,842 <em>kcal</em></b></div></div><div className="activity-footer"><span><Cloud size={15}/> Last updated just now</span><button onClick={() => setActive("Activity")}>View activity <ChevronRight size={14}/></button></div></div>
-        </div>
-        <div className="footer-note"><span>SerinSoul</span> · Your health, in rhythm. <span className="demo-tag">PREVIEW DATA</span><span className="footer-right">Metrics are illustrative until your device is connected.</span></div>
+
+      <div className="live-panels">
+        <article className="live-panel"><div className="live-panel-head"><div><h2>Heart-rate history</h2><p>Latest {hrValues.length} heart-rate samples</p></div><span className="live-tag">hrSample</span></div>
+          {hrValues.length > 1 ? <div className="live-chart"><svg viewBox="0 0 600 180" preserveAspectRatio="none" role="img" aria-label="Heart rate sample trend"><line x1="0" y1="150" x2="600" y2="150"/><line x1="0" y1="90" x2="600" y2="90"/><line x1="0" y1="30" x2="600" y2="30"/><polyline points={hrValues.map((v, i) => `${i * (600 / Math.max(1, hrValues.length - 1))},${160 - (v - Math.min(...hrValues)) / Math.max(1, Math.max(...hrValues) - Math.min(...hrValues)) * 125}`).join(" ")}/></svg><div className="live-chart-meta"><span>Oldest: {timeLabel(heartRows[heartRows.length - hrValues.length]?.measurement_ts)}</span><span>Latest: {timeLabel(latestHr?.measurement_ts)}</span></div></div> : <div className="live-empty"><Activity size={22}/><b>{hrValues.length ? "One sample received" : "No heart-rate data yet"}</b><span>Offload your WHOOP data in the Android app, then use Self-hosted Push to send it here.</span></div>}
+        </article>
+        <article className="live-panel"><div className="live-panel-head"><div><h2>Receiver status</h2><p>SerinSoul API and supported streams</p></div><span className="live-tag">PUSH 1.0</span></div><div className="stream-list">{[["Heart-rate samples","hrSample",streams.hrSample.count],["RR intervals","rrInterval",streams.rrInterval.count],["Battery readings","battery",streams.battery.count]].map(([label, stream, count]) => <div className="stream-row" key={String(stream)}><span className="stream-ok"/><div><b>{label}</b><small>{stream}</small></div><strong>{Number(count).toLocaleString()}</strong></div>)}</div><div className="receiver-note"><Watch size={16}/><span>Data arrives after the Android app offloads the band and completes a push. This dashboard refreshes every 30 seconds while connected.</span></div></article>
       </div>
+      <footer className="live-footer"><span>SerinSoul · Your health, in rhythm.</span><span>Data is read from your private receiver. Not medical advice.</span></footer>
     </section>
   </main>;
 }
